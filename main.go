@@ -12,7 +12,11 @@ import (
 	"time"
 )
 
-const LogFile = "logs.log"
+const (
+	Port           = ":8080"
+	LogFile        = "logs.log"
+	EndpointStream = "/stream_logs"
+)
 
 // go run main.go
 func main() {
@@ -22,34 +26,40 @@ func main() {
 		os.Exit(0)
 	}
 
+	// every 1 second, write the current time to the log file as example of data coming in
+	var f *os.File
+	var err error
 	go func() {
-		// every 1 second, write the current time to the log file
 		for {
-			f, err := os.OpenFile(LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			time.Sleep(1 * time.Second)
+			f, err = os.OpenFile(LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
 				log.Fatal(err)
 			}
-			// defer f.Close() // will never run bc of loop. Move to another context or something to close on close
 
 			_, err = f.WriteString(time.Now().String() + "\n")
 			if err != nil {
 				log.Fatal(err)
 			}
-			time.Sleep(1 * time.Second)
 		}
 	}()
+	if f != nil {
+		defer f.Close()
+	}
 
-	http.HandleFunc("/stream", StreamLogs)
+	http.HandleFunc(EndpointStream, StreamLogs)
 
-	fmt.Println("Listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	fmt.Println("Listening on " + Port)
+	log.Fatal(http.ListenAndServe(Port, nil))
 }
 
 func client() {
 	fmt.Println("Client")
 
-	// connect to the server on :8080 and get the logs
-	resp, err := http.Get("http://localhost:8080/stream")
+	e := "http://" + Port + EndpointStream
+	fmt.Println("Connecting to:", e)
+
+	resp, err := http.Get(e)
 	if err != nil {
 		log.Fatal(err)
 	}
